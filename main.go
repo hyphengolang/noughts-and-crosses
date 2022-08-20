@@ -2,14 +2,10 @@ package main
 
 import (
 	"context"
-	"encoding/json"
-	"io"
 	"log"
-	"net"
 	"net/http"
 
-	"github.com/gobwas/ws"
-	"github.com/gobwas/ws/wsutil"
+	"github.com/gorilla/websocket"
 
 	"github.com/google/uuid"
 )
@@ -29,18 +25,16 @@ type pool struct {
 }
 
 func (p pool) listen() error {
-	for {
-		select {
-		case msg := <-p.msgs:
-			for _, c := range p.conns {
-				log.Printf("Sending %d to %s", msg, c.id)
-				if err := c.writeJSON(msg); err != nil {
-					return err
-				}
+	for msg := range p.msgs {
+		for _, c := range p.conns {
+			log.Printf("Sending %d to %s", msg, c.id)
+			if err := c.writeJSON(msg); err != nil {
+				return err
 			}
 		}
 	}
-	// return nil
+
+	return nil
 }
 
 func (p pool) broadcast(msg any) error {
@@ -57,17 +51,14 @@ func (p pool) broadcast(msg any) error {
 type conn struct {
 	id uuid.UUID
 
-	rwc net.Conn
-
-	r *wsutil.Reader
-	w *wsutil.Writer
+	rwc *websocket.Conn
 
 	p *pool
 }
 
-func (c conn) readJSON(v any) error { return json.NewDecoder(c.r).Decode(v) }
+func (c conn) readJSON(v any) error { return c.rwc.ReadJSON(v) }
 
-func (c conn) writeJSON(v any) error { return json.NewEncoder(c.w).Encode(v) }
+func (c conn) writeJSON(v any) error { return c.rwc.WriteJSON(v) }
 
 func main() {
 	mux := http.NewServeMux()
@@ -97,28 +88,33 @@ func NewService(mux *http.ServeMux) *Service {
 }
 
 func (s Service) upgradeHTTP(f http.HandlerFunc) http.HandlerFunc {
+	var ws = websocket.Upgrader{
+		ReadBufferSize:  1024,
+		WriteBufferSize: 1024,
+		CheckOrigin:     func(r *http.Request) bool { return true },
+	}
+
 	p := &pool{
 		id:    uuid.New(),
 		msgs:  make(chan int),
 		conns: make(map[uuid.UUID]*conn),
 	}
 
-	// go p.listen()
+	go p.listen()
 
 	// north bridge, perth
 
 	return func(w http.ResponseWriter, r *http.Request) {
-		rwc, _, _, err := ws.UpgradeHTTP(r, w)
+		rwc, err := ws.Upgrade(w, r, nil)
 		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
+			log.Println(err)
+			// w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
 		c := &conn{
 			id:  uuid.New(),
 			rwc: rwc,
-			r:   wsutil.NewReader(rwc, ws.StateServerSide),
-			w:   wsutil.NewWriter(rwc, ws.StateServerSide, ws.OpText),
 			p:   p,
 		}
 
@@ -143,26 +139,12 @@ func (c *conn) serve() error {
 	}()
 
 	for {
-		h, err := c.r.NextFrame()
-		if err != nil {
-			return err
-		}
-		if h.OpCode == ws.OpClose {
-			return io.EOF
-		}
-
 		var n int
 		if err := c.readJSON(&n); err != nil {
 			return err
 		}
-
-		if err := c.w.Flush(); err != nil {
-			return err
-		}
-
-		c.p.broadcast(fib(n))
+		c.p.msgs <- fib(n)
 	}
-
 }
 
 // fibinacci returns the nth fib number
