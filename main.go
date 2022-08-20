@@ -101,6 +101,8 @@ func (s Service) upgradeHTTP(f http.HandlerFunc) http.HandlerFunc {
 		conns: make(map[uuid.UUID]*conn),
 	}
 
+	s.ps = append(s.ps, p)
+
 	go p.listen()
 
 	return func(w http.ResponseWriter, r *http.Request) {
