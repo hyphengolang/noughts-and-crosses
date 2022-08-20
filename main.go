@@ -19,29 +19,24 @@ var upgradeKey = &contextKey{"upgrade-http"}
 type pool struct {
 	id uuid.UUID
 
+	// msgs is a channel of messages to send to all connections
 	msgs chan int
 
+	// conns is a map of all connections in the pool
 	conns map[uuid.UUID]*conn
 }
 
 func (p pool) listen() error {
+	// send to all connections via goroutines
 	for msg := range p.msgs {
 		for _, c := range p.conns {
-			log.Printf("Sending %d to %s", msg, c.id)
-			if err := c.writeJSON(msg); err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
-}
-
-func (p pool) broadcast(msg any) error {
-	for _, c := range p.conns {
-		log.Printf("Sending %d to %s", msg, c.id)
-		if err := c.writeJSON(msg); err != nil {
-			return err
+			go func(c *conn) error {
+				log.Printf("Sending %d to %s", msg, c.id)
+				if err := c.writeJSON(msg); err != nil {
+					return err
+				}
+				return nil
+			}(c)
 		}
 	}
 
@@ -72,7 +67,8 @@ func getConn[T any](r *http.Request) T {
 }
 
 type Service struct {
-	h *http.ServeMux
+	h  *http.ServeMux
+	ps []*pool
 }
 
 func (s Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -81,10 +77,15 @@ func (s Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func NewService(mux *http.ServeMux) *Service {
 	s := &Service{
-		h: mux,
+		h:  mux,
+		ps: make([]*pool, 0),
 	}
 	s.h.HandleFunc("/ws", s.upgradeHTTP(s.handleEcho))
 	return s
+}
+
+func (s Service) joinPool(c *conn) {
+	s.ps[0].conns[c.id] = c
 }
 
 func (s Service) upgradeHTTP(f http.HandlerFunc) http.HandlerFunc {
@@ -102,24 +103,17 @@ func (s Service) upgradeHTTP(f http.HandlerFunc) http.HandlerFunc {
 
 	go p.listen()
 
-	// north bridge, perth
-
 	return func(w http.ResponseWriter, r *http.Request) {
 		rwc, err := ws.Upgrade(w, r, nil)
 		if err != nil {
 			log.Println(err)
-			// w.WriteHeader(http.StatusInternalServerError)
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
-		c := &conn{
-			id:  uuid.New(),
-			rwc: rwc,
-			p:   p,
-		}
+		c := &conn{uuid.New(), rwc, p}
 
-		p.conns[c.id] = c // add to pool
-		log.Printf("Added %s to pool %d", c.id, len(p.conns))
+		go s.joinPool(c) // add to pool
 
 		r = r.WithContext(context.WithValue(r.Context(), upgradeKey, c))
 		f(w, r)
