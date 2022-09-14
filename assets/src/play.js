@@ -1,17 +1,26 @@
+const app = document.getElementById("app");
 
-// const button = document.getElementsByTagName('button')[0];
+app.innerHTML = `
+    <h1>Let's play</h1>
+    <button>Go!</button>
+`;
 
-// const ws = new WebSocket('ws://localhost:8080/ws');
+const id = window.location.pathname.split("/").at(-1);
+const endpoint = `ws://localhost:8080/api/game/play/${id}`;
 
-// ws.onopen = (e) => { console.log('Connected to server', e); };
+const ws = new WebSocket(endpoint);
 
-// ws.onclose = () => {
-//     button.disabled = true;
-// };
+const button = document.querySelector("button");
 
-// ws.onmessage = e => { console.log(e.data); };
+ws.onopen = (e) => { console.log('Connected to server', e); };
 
-// let n = 0;
-// button.addEventListener('click', () => {
-//     n > 10 ? (n = 0) : (ws.send(++n));
-// });
+ws.onclose = () => {
+    button.disabled = true;
+};
+
+ws.onmessage = e => { console.log(e.data); };
+
+let n = 0;
+button.addEventListener('click', () => {
+    n > 10 ? (n = 0) : (ws.send(++n));
+});
