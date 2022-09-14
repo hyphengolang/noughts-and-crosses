@@ -32,8 +32,8 @@ func NewService(mux chi.Router) *Service {
 func (s Service) routes() {
 	// http
 	s.m.Handle("/assets/*", s.handleFiles("/assets/", "assets"))
-	s.m.HandleFunc("/", s.viewIndex("index.html"))
-	s.m.HandleFunc("/play/{id}", s.viewPlay("play.html"))
+	s.m.HandleFunc("/", s.viewIndex("pages/index.html"))
+	s.m.HandleFunc("/play/{id}", s.viewPlay("pages/play.html"))
 
 	// api
 	s.m.Get("/api/game/create", s.apiCreateGame)

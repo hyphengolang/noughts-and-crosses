@@ -29,9 +29,11 @@ func (s Service) handlePlayGame(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		s.l.Println("Value starts at 0")
-
-		c.WriteJSON(internal.Fibonacci(n))
+		c.Send(internal.Fibonacci(n))
+		// if err := c.WriteJSON(internal.Fibonacci(n)); err != nil {
+		// 	s.l.Println(err)
+		// 	return
+		// }
 	}
 
 }

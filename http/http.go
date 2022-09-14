@@ -36,6 +36,8 @@ func (s Service) sessionPool(f http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 
+		s.l.Println("This session matches the ID", p.ID)
+
 		r = r.WithContext(context.WithValue(r.Context(), poolKey, p))
 		f(w, r)
 	}
