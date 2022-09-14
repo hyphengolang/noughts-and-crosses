@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Play Game!</title>
+    <!-- <script src="assets/src/play.js" defer></script> -->
+</head>
+
+<body>
+    <div id="app"></div>
+
+    <script defer>
+        const app = document.getElementById("app");
+
+        app.innerHTML = `
+            <h1>Let's play</h1>
+            <button>Go!</button>
+        `;
+
+        const id = window.location.pathname.split("/").at(-1);
+        const endpoint = `ws://localhost:8080/api/game/play/${id}`;
+
+        // ws://localhost:8080/api/game/play/4cc9ed9d-06d2-43c7-ba1c-a9f0eeb3e074
+
+        const ws = new WebSocket(endpoint);
+
+        const button = document.querySelector("button");
+
+        ws.onopen = (e) => { console.log('Connected to server', e); };
+
+        ws.onclose = () => {
+            button.disabled = true;
+        };
+
+        ws.onmessage = e => { console.log(e.data); };
+
+        let n = 0;
+        button.addEventListener('click', () => {
+            n > 10 ? (n = 0) : (ws.send(++n));
+        });
+    </script>
+</body>
+
+</html>

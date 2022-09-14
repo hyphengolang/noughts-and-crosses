@@ -7,9 +7,9 @@ import (
 	"com.adoublef.websocket/http/ws"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/google/uuid"
 	h "github.com/hyphengolang/prelude/http"
 	t "github.com/hyphengolang/prelude/template"
+	"github.com/lithammer/shortuuid/v4"
 )
 
 type Service struct {
@@ -68,7 +68,7 @@ func (s Service) viewPlay(path string) http.HandlerFunc {
 	}
 
 	return func(w http.ResponseWriter, r *http.Request) {
-		uid, err := uuid.Parse(chi.URLParam(r, "id"))
+		uid, err := shortuuid.DefaultEncoder.Decode(chi.URLParam(r, "id"))
 		if err != nil {
 			// can render page with error infomation
 			s.respond(w, r, err, http.StatusBadRequest)

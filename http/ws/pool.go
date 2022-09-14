@@ -30,15 +30,6 @@ func NewPool() *Pool {
 	return p
 }
 
-func (p *Pool) Close() error {
-	for uid, c := range p.cs {
-		p.Remove(uid)
-		c.Close()
-	}
-	log.Println("closed")
-	return nil
-}
-
 func (p *Pool) Size() int {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -63,8 +54,6 @@ func (p *Pool) Add(w http.ResponseWriter, r *http.Request, u *websocket.Upgrader
 
 	p.cs[c.ID] = c
 
-	log.Println("New size", p.Size())
-
 	return c, nil
 }
 
@@ -76,11 +65,17 @@ func (p *Pool) Remove(uid uuid.UUID) {
 }
 
 func (p *Pool) listen() error {
+	log.Println(p.Size())
 	// send to all connections via goroutines
-
 	for msg := range p.msgs {
 		for _, c := range p.cs {
-			go c.WriteJSON(msg)
+			go func(c *Conn) error {
+				log.Printf("Sending %d to %s", msg, c.ID)
+				if err := c.WriteJSON(msg); err != nil {
+					return err
+				}
+				return nil
+			}(c)
 		}
 	}
 

@@ -6,9 +6,9 @@ import (
 
 	"com.adoublef.websocket/http/ws"
 	"github.com/go-chi/chi/v5"
-	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	h "github.com/hyphengolang/prelude/http"
+	"github.com/lithammer/shortuuid/v4"
 )
 
 type contextKey struct{ string }
@@ -23,8 +23,9 @@ var (
 func chain(hf http.HandlerFunc, mw ...h.MiddleWare) http.HandlerFunc { return h.Chain(hf, mw...) }
 
 func (s Service) sessionPool(f http.HandlerFunc) http.HandlerFunc {
+
 	return func(w http.ResponseWriter, r *http.Request) {
-		uid, err := uuid.Parse(chi.URLParam(r, "id"))
+		uid, err := shortuuid.DefaultEncoder.Decode(chi.URLParam(r, "id"))
 		if err != nil {
 			s.respond(w, r, err, http.StatusBadRequest)
 			return

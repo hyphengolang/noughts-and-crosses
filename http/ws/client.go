@@ -52,8 +52,6 @@ func (c *Client) Get(uid uuid.UUID) (*Pool, error) {
 }
 
 func (c *Client) Has(uid uuid.UUID) bool {
-	if _, err := c.Get(uid); err != nil {
-		return false
-	}
-	return true
+	_, err := c.Get(uid)
+	return err == nil
 }
