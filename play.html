@@ -23,6 +23,8 @@
         const id = window.location.pathname.split("/").at(-1);
         const endpoint = `ws://localhost:8080/api/game/play/${id}`;
 
+        // ws://localhost:8080/api/game/play/4cc9ed9d-06d2-43c7-ba1c-a9f0eeb3e074
+
         const ws = new WebSocket(endpoint);
 
         const button = document.querySelector("button");

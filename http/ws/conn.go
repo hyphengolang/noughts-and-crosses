@@ -1,6 +1,8 @@
 package ws
 
 import (
+	"log"
+
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
@@ -21,21 +23,7 @@ func (c Conn) ReadJSON(v any) error { return c.rwc.ReadJSON(v) }
 
 func (c Conn) WriteJSON(v any) error { return c.rwc.WriteJSON(v) }
 
-func (c Conn) Send(v any) { c.p.msgs <- v }
-
-func (c *Conn) join(p *Pool) error {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	p.cs[c.ID] = c
-
-	msg := struct {
-		PoolID string
-		ConnID string
-	}{
-		PoolID: p.ID.String(),
-		ConnID: c.ID.String(),
-	}
-
-	return c.WriteJSON(msg)
+func (c Conn) Send(v any) {
+	log.Println("size of pool is", c.p.Size())
+	c.p.msgs <- v
 }
